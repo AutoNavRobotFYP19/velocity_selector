@@ -1,0 +1,3 @@
+<launch>
+    <node pkg="velocity_selector" type="velocity_selector" name="velocity_selector" output="screen"></node>
+</launch>
