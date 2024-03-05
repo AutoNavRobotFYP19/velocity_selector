@@ -63,6 +63,7 @@ class VelocitySelector {
 
     void publish_velocity () 
     {
+        // ROS_INFO("Linear x = %f \t Angular x = %f", twist_cmd.linear.x, twist_cmd.angular.z);
         vel_final_topic.publish(twist_cmd);
     }
 
@@ -83,7 +84,7 @@ class VelocitySelector {
         {
             publish_velocity();
             if (count > 100) {
-                ROS_INFO("\u001b[44mSwitch Back to Navigation Stack\u001b[47m");
+                ROS_INFO("\u001b[32mSwitch Back to Navigation Stack\u001b[47m");
                 status = 0;
                 count = 0;
                 start_count = false;
