@@ -1,6 +1,6 @@
 /*
  * Author       : Dhanuja Jayasinghe
- * Data         : 29-01-2024
+ * Date         : 29-01-2024
  * Description  : 
  */
 
@@ -17,11 +17,13 @@ class VelocitySelector {
     ros::Publisher vel_final_topic;
     ros::Subscriber cmd_vel_topic;
     ros::Subscriber cam_vel_topic;
+    ros::Subscriber lidar_vel_topic;
     double update_frequency = 20.0; //20Hz
-    int status = 0; // 0 -> publish smoothed_cmd_vel | 1 -> publish cam_vel
+    int status = 0; // 0 -> publish smoothed_cmd_vel | 1 -> publish cam_vel | 2 -> publish lidar_vel
     int count = 0;
     bool start_count = false;
 
+    // get smoothed_cmd_vel -> the filtered velocity command from navigation stack
     void smoothed_cmd_vel_cb (const geometry_msgs::Twist::ConstPtr& msg) 
     {
         if (!status) {
@@ -37,19 +39,14 @@ class VelocitySelector {
         
     }
 
+    // get cam_vel -> the velocity command based on camera output
     void cam_vel_cb (const geometry_msgs::Twist::ConstPtr& msg) 
     {
-        // ROS_INFO("/cam_vel msg received");
-        // if (msg->linear.x != 0) {
-        //     status = 1;
-        // } else if (msg->linear.x == 0) {
-        //     status = 0;
-        // }
+ 
         ROS_INFO("\u001b[31mNavigation using Camera\u001b[47m");
         status = 1;
         start_count = true;
 
-        // publish /cam_vel when an object is detected
         if (status) {
             twist_cmd.linear.x = msg->linear.x;
             twist_cmd.linear.y = msg->linear.y;
@@ -61,11 +58,27 @@ class VelocitySelector {
         }
     }
 
-    void publish_velocity () 
-    {
-        // ROS_INFO("Linear x = %f \t Angular x = %f", twist_cmd.linear.x, twist_cmd.angular.z);
-        vel_final_topic.publish(twist_cmd);
+    // get lidar_vel -> the velocity command based on lidar output 
+    void lidar_vel_cb (const geometry_msgs::Twist::ConstPtr& msg) {
+        ROS_INFO("\u001b[35mNavigation using LiDAR\u001b[47m");
+        status = 2;
+        start_count = true;
+
+        twist_cmd.linear.x = msg->linear.x;
+        twist_cmd.linear.y = msg->linear.y;
+        twist_cmd.linear.z = msg->linear.z;
+
+        twist_cmd.angular.x = msg->angular.x;
+        twist_cmd.angular.y = msg->angular.y;
+        twist_cmd.angular.z = msg->angular.z;
+
     }
+
+    // void publish_velocity () 
+    // {
+    //     // ROS_INFO("Linear x = %f \t Angular x = %f", twist_cmd.linear.x, twist_cmd.angular.z);
+    //     vel_final_topic.publish(twist_cmd);
+    // }
 
     public:
     //Class Constructor
@@ -75,6 +88,7 @@ class VelocitySelector {
         vel_final_topic = nh.advertise<geometry_msgs::Twist>("vel_final", 10);
         cmd_vel_topic = nh.subscribe("smoothed_cmd_vel", 50, &VelocitySelector::smoothed_cmd_vel_cb, this);
         cam_vel_topic = nh.subscribe("cam_vel", 50, &VelocitySelector::cam_vel_cb, this);
+        lidar_vel_topic = nh.subscribe("lidar_vel", 50, &VelocitySelector::lidar_vel_cb, this);
     }
 
     void waiting_loop()
@@ -82,7 +96,8 @@ class VelocitySelector {
         ros::Rate rate(update_frequency);
         while (ros::ok())
         {
-            publish_velocity();
+            //publish_velocity();
+            vel_final_topic.publish(twist_cmd);
             if (count > 100) {
                 ROS_INFO("\u001b[32mSwitch Back to Navigation Stack\u001b[47m");
                 status = 0;
